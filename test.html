@@ -1,72 +1,127 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AR Model Experience</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Auto AR (Android) with Preview Fallback</title>
 
-    <!-- Model Viewer for fallback (desktop / iPhone preview) -->
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <!-- model-viewer for preview / iOS quick-look fallback -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
-    <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        background: #111;
-        color: white;
-        font-family: Arial, sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
+  <style>
+    :root { --bg: #111; --fg: #fff; --accent: #06f; }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:Arial,Helvetica,sans-serif}
+    .center {min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;text-align:center}
+    .card {max-width:920px;width:100%}
+    .message {margin-bottom:12px;font-size:1rem}
+    .btn {display:inline-block;margin:8px;padding:10px 16px;border-radius:8px;border:none;background:var(--accent);color:white;font-weight:600;cursor:pointer}
+    .btn.secondary {background:transparent;border:1px solid rgba(255,255,255,0.12)}
+    model-viewer {width:100%;height:70vh;max-height:720px;border-radius:12px;overflow:hidden}
+    .hint {font-size:0.9rem;color:rgba(255,255,255,0.7);margin-top:8px}
+  </style>
+</head>
+<body>
+  <div id="app" class="center card">
+    <div class="message">🚀 Preparing AR experience…</div>
+  </div>
+
+  <script>
+    // --- CONFIG: change these to your files (HTTPS required) ---
+    const modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"; // must be .glb
+    const iosUsdUrl = ""; // optional .usdz url for iOS quick-look (leave empty if none)
+
+    // --- Utilities ---
+    const app = document.getElementById('app');
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    const isChrome = /Chrome/i.test(ua) && !/Edg|OPR|SamsungBrowser/i.test(ua);
+
+    // Build Scene Viewer intent URL (fallback to this page)
+    const fallbackPage = window.location.href; // fallback shows the preview on this page
+    const intentUrl = "intent://arvr.google.com/scene-viewer/1.0?" +
+      "file=" + encodeURIComponent(modelUrl) +
+      "&mode=ar_preferred" +
+      "#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=" +
+      encodeURIComponent(fallbackPage) + ";end";
+
+    // Create and return DOM elements easily
+    function el(tag, attrs = {}, text = "") {
+      const e = document.createElement(tag);
+      Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k,v));
+      if (text) e.textContent = text;
+      return e;
+    }
+
+    // Show a model-viewer preview (desktop / iOS / fallback)
+    function showPreview() {
+      app.innerHTML = "";
+      const mv = el('model-viewer', {
+        src: modelUrl,
+        alt: "3D model",
+        ar: "",
+        'ar-modes': "scene-viewer webxr quick-look",
+        'camera-controls': "",
+        'auto-rotate': "",
+        'shadow-intensity': "1"
+      });
+      if (iosUsdUrl) mv.setAttribute('ios-src', iosUsdUrl);
+      app.appendChild(mv);
+
+      const hint = el('div', { class: 'hint' }, "Preview shown — on an Android phone use the button to open AR, or open this page in Chrome.");
+      app.appendChild(hint);
+    }
+
+    // Show Android controls + attempt auto-launch
+    function showAndroidControls() {
+      app.innerHTML = "";
+      const msg = el('div', { class: 'message' }, "This page will open AR (Google Scene Viewer). If it doesn't start automatically, tap 'Open in AR'.");
+      app.appendChild(msg);
+
+      const openBtn = el('button', { class: 'btn' }, "Open in AR");
+      app.appendChild(openBtn);
+
+      const previewBtn = el('button', { class: 'btn secondary' }, "Preview instead");
+      previewBtn.style.marginLeft = "8px";
+      app.appendChild(previewBtn);
+
+      const hint = el('div', { class: 'hint' }, "Make sure you're using Chrome and have 'Google Play Services for AR' installed.");
+      app.appendChild(hint);
+
+      openBtn.addEventListener('click', () => {
+        console.log("User tapped Open in AR -> navigating to intent URL");
+        window.location.href = intentUrl;
+      });
+      previewBtn.addEventListener('click', showPreview);
+
+      // Try an automatic attempt after a short delay (may be blocked on some devices)
+      setTimeout(() => {
+        console.log("Attempting automatic AR launch (may be blocked on some devices)");
+        // A navigation is a user gesture in some cases when done immediately after load; if blocked, the user can tap the button.
+        window.location.href = intentUrl;
+      }, 700);
+    }
+
+    // Main flow
+    window.addEventListener('load', () => {
+      if (isAndroid && isChrome) {
+        showAndroidControls();
+      } else {
+        // Not Android/Chrome — show preview and an informative message
+        showPreview();
+        const info = el('div', { class: 'message' }, isAndroid ? "Your browser may not support Scene Viewer. Preview shown." : "AR only works on Android Chrome — preview shown." );
+        // insert before model-viewer
+        app.insertBefore(info, app.firstChild);
       }
-      model-viewer {
-        width: 100%;
-        max-width: 500px;
-        height: 80vh;
-      }
-      .message {
-        padding: 20px;
-        font-size: 1.2em;
-      }
-    </style>
+    });
 
-    <script>
-      window.onload = function () {
-        const modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"; 
-        const isAndroid = /Android/i.test(navigator.userAgent);
+    // Helpful debugging: show UA in console
+    console.log("UserAgent:", ua, "isAndroid:", isAndroid, "isChrome:", isChrome, "intentUrl:", intentUrl);
 
-        if (isAndroid) {
-          // Launch AR directly on Android
-          const intentLink = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(modelUrl)}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(window.location.href)};end;`;
-          window.location.href = intentLink;
-        } else {
-          // Show the fallback 3D preview
-          document.body.innerHTML = `
-            <model-viewer
-              src="${modelUrl}"
-              alt="3D model"
-              ar
-              ar-modes="scene-viewer webxr quick-look"
-              camera-controls
-              auto-rotate
-              shadow-intensity="1">
-            </model-viewer>
-          `;
-        }
-      };
-
-      window.onerror = function () {
-        document.body.innerHTML = `
-          <div class="message">
-            ⚠️ AR is not supported on this device.
-          </div>
-        `;
-      };
-    </script>
-  </head>
-  <body>
-    <div class="message">🚀 Launching AR experience…</div>
-  </body>
+    // Global error fallback
+    window.addEventListener('error', () => {
+      app.innerHTML = '<div class="message">⚠️ AR is not supported on this device or an error occurred. Preview (if available) is shown above.</div>';
+      showPreview();
+    });
+  </script>
+</body>
 </html>
