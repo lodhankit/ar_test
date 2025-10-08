@@ -1,3 +1,72 @@
-<a href="intent://arvr.google.com/scene-viewer/1.0?file=https://modelviewer.dev/shared-assets/models/Astronaut.glb#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=https://modelviewer.dev;end;">
-  🚀 Open in AR
-</a>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AR Model Experience</title>
+
+    <!-- Model Viewer for fallback (desktop / iPhone preview) -->
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #111;
+        color: white;
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+      model-viewer {
+        width: 100%;
+        max-width: 500px;
+        height: 80vh;
+      }
+      .message {
+        padding: 20px;
+        font-size: 1.2em;
+      }
+    </style>
+
+    <script>
+      window.onload = function () {
+        const modelUrl = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"; 
+        const isAndroid = /Android/i.test(navigator.userAgent);
+
+        if (isAndroid) {
+          // Launch AR directly on Android
+          const intentLink = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(modelUrl)}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(window.location.href)};end;`;
+          window.location.href = intentLink;
+        } else {
+          // Show the fallback 3D preview
+          document.body.innerHTML = `
+            <model-viewer
+              src="${modelUrl}"
+              alt="3D model"
+              ar
+              ar-modes="scene-viewer webxr quick-look"
+              camera-controls
+              auto-rotate
+              shadow-intensity="1">
+            </model-viewer>
+          `;
+        }
+      };
+
+      window.onerror = function () {
+        document.body.innerHTML = `
+          <div class="message">
+            ⚠️ AR is not supported on this device.
+          </div>
+        `;
+      };
+    </script>
+  </head>
+  <body>
+    <div class="message">🚀 Launching AR experience…</div>
+  </body>
+</html>
